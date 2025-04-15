@@ -103,19 +103,36 @@ def set_cache(new_cache):
 		file.write(new_cache)
 
 def get_host_ip():
-	handle = popen('ipconfig')
-	result = handle.read().splitlines()
-	for i in range(len(result)):
-		if not result[i] or result[i].startswith(' '):
-			continue
-		if config['keyword'] in result[i]:
-			print(result[i][:-1])
-			for j in range(i + 1, len(result)):
-				if 'IPv4' in result[j]:
-					host_ip = result[j].split(': ')[1].strip()
-					print('host ip:', host_ip)
-					return host_ip
-	return ''
+    if os.name == 'nt':
+        return _get_host_ip_windows()
+    else:
+        return _get_host_ip_unix()
+
+def _get_host_ip_windows():
+    try:
+        handle = Popen(['ipconfig'], stdout=PIPE, stderr=PIPE, shell=True)
+        result = handle.communicate()[0].decode('gbk').splitlines()
+        
+        for line in result:
+            if 'IPv4' in line:
+                host_ip = line.split(':')[-1].strip()
+                print('host ip:', host_ip)
+                return host_ip
+        return ''
+    except Exception as e:
+        print(f"Error getting IP on Windows: {e}")
+        return ''
+
+def _get_host_ip_unix():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception as e:
+        print(f"Error getting IP on Unix: {e}")
+        return ''
 
 def load_config():
 	global config, cache_dir
